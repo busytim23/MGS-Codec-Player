@@ -2,34 +2,31 @@ let DATA = null;
 const audioMap = {};
 let currentMusic = null;
 
+let currentStage = null;
+let currentOverride = null;
+
 document.addEventListener("DOMContentLoaded", () => {
   fetch("data.json")
     .then(r => r.json())
     .then(d => {
       DATA = d;
-      console.log("DATA OK");
-      startApp();
+      init();
     })
-    .catch(e => console.error("JSON ERROR", e));
+    .catch(err => console.error("JSON ERROR", err));
 });
 
-function startApp() {
+function init() {
   const sel = document.getElementById("stageSelect");
-  const grid = document.getElementById("sfxGrid");
-  const overrideUI = document.getElementById("overrideContainer");
 
-  if (!sel || !grid || !overrideUI) {
-    console.error("Faltan elementos HTML");
-    return;
-  }
-
-  // AUDIO MAP
-  const all = [...DATA.sources.music, ...DATA.sources.sounds];
+  // AUDIO LOAD
+  const all = [
+    ...DATA.sources.music,
+    ...DATA.sources.sounds
+  ];
 
   all.forEach(s => {
     const a = new Audio(s.src);
     a.volume = s.volume ?? 1;
-    a.preload = "auto";
     audioMap[s.id] = a;
   });
 
@@ -42,23 +39,23 @@ function startApp() {
   });
 
   sel.onchange = () => {
-    const st = DATA.stages.find(x => x.id === sel.value);
+    currentStage = sel.value;
+
+    const st = DATA.stages.find(x => x.id === currentStage);
     if (st) playMusic(st.music);
+
+    renderOverrides();
+    renderSFX();
   };
 
-  // SFX
-  DATA.sfx.forEach(s => {
-    const btn = document.createElement("button");
-    btn.className = "border border-green-500 px-2 py-1";
-    btn.textContent = s.label;
-    btn.onclick = () => playSequence(s.play);
-    grid.appendChild(btn);
-  });
+  currentStage = sel.value = DATA.stages[0].id;
 
-  buildOverrides(overrideUI);
+  renderOverrides();
+  renderSFX();
+
+  const st = DATA.stages[0];
+  playMusic(st.music);
 }
-
----
 
 function playMusic(id) {
   if (currentMusic) {
@@ -70,60 +67,76 @@ function playMusic(id) {
   if (!a) return;
 
   currentMusic = a;
-  a.currentTime = 0;
+  a.loop = true;
   a.play();
 }
-
----
 
 function playSequence(seq) {
   seq.forEach(x => {
     setTimeout(() => {
       const a = audioMap[x.id];
       if (!a) return;
-
       const c = a.cloneNode();
       c.play();
     }, (x.delay || 0) * 1000);
   });
 }
-
----
 
 function runOverride(id) {
-  const list = DATA["stage-overrides"] || [];
-  const ov = list.find(o => o.id === id);
+  const ov = DATA["stage-overrides"].find(o => o.id === id);
   if (!ov) return;
 
-  ov.play.forEach(x => {
-    setTimeout(() => {
-      const a = audioMap[x.id];
-      if (!a) return;
+  currentOverride = id;
 
-      const c = a.cloneNode();
-      c.play();
-    }, (x.delay || 0) * 1000);
-  });
+  playSequence(ov.play);
+  renderSFX();
 }
 
----
+function renderOverrides() {
+  const bar = document.getElementById("overrideBar");
+  bar.innerHTML = "";
 
-function buildOverrides(container) {
-  const list = DATA["stage-overrides"] || [];
+  const list = DATA["stage-overrides"];
 
-  container.innerHTML = "";
-
-  const alert = document.createElement("button");
-  alert.className = "border border-red-500 px-3 py-1";
-  alert.textContent = "🚨 ALERT";
-  alert.onclick = () => runOverride("override-alert");
-  container.appendChild(alert);
+  const alertBtn = document.createElement("button");
+  alertBtn.textContent = "🚨 ALERT";
+  alertBtn.className = "border border-red-500 px-2";
+  alertBtn.onclick = () => runOverride("override-alert");
+  bar.appendChild(alertBtn);
 
   list.forEach(o => {
     const b = document.createElement("button");
-    b.className = "border border-green-500 px-2 py-1";
     b.textContent = o.label;
+    b.className = "border border-green-500 px-2";
     b.onclick = () => runOverride(o.id);
-    container.appendChild(b);
+    bar.appendChild(b);
+  });
+}
+
+function renderSFX() {
+  const grid = document.getElementById("sfxGrid");
+  grid.innerHTML = "";
+
+  DATA.sfx.forEach(s => {
+    // filtro básico por override
+    if (s.show_if?.override) {
+      const ok = s.show_if.override.in?.includes(currentOverride) ||
+                  s.show_if.override.not_in?.includes(currentOverride) === false;
+
+      if (!ok && currentOverride) return;
+    }
+
+    const btn = document.createElement("button");
+    btn.textContent = s.label;
+
+    btn.onclick = () => playSequence(s.play);
+    grid.appendChild(btn);
+  });
+}
+
+function stopAll() {
+  Object.values(audioMap).forEach(a => {
+    a.pause();
+    a.currentTime = 0;
   });
 }
