@@ -1,35 +1,21 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <title>MGS Codec Player</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script src="https://cdn.tailwindcss.com"></script>
-</head>
-
 <body class="bg-black text-green-400 font-mono">
 
-<!-- 🔥 APP ROOT -->
 <div class="max-w-6xl mx-auto p-6">
-
   <h1 class="text-2xl mb-4">CODEC PLAYER</h1>
 
-  <!-- 🎮 CONTROLES -->
   <div class="flex gap-4 mb-4">
     <select id="stageSelect" class="bg-black border border-green-500 p-2"></select>
     <button onclick="stopAll()" class="border border-red-500 px-3">STOP</button>
   </div>
 
-  <!-- 🚨 NUEVO: OVERRIDES UI -->
-  <div id="overrideContainer" class="flex gap-2 mb-4 flex-wrap"></div>
-
   <p id="nowPlaying">Idle</p>
+
+  <!-- OVERRIDES -->
+  <div id="overrideBar" class="flex gap-2 flex-wrap my-4"></div>
 
   <h2 class="mt-6">SFX</h2>
   <div id="sfxGrid" class="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2"></div>
-
 </div>
 
 <script src="app.js"></script>
 </body>
-</html>
