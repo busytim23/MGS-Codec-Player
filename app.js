@@ -1,171 +1,132 @@
-let DATA;
+let DATA = null;
 const audioMap = {};
 let currentMusic = null;
 
 fetch('data.json')
-  .then(res => {
-    if (!res.ok) throw new Error("No se pudo cargar data.json");
-    return res.json();
-  })
-  .then(data => {
-    DATA = data;
-    console.log("DATA cargada OK");
-    init();
+  .then(r => r.json())
+  .then(d => {
+    DATA = d;
+    console.log("JSON OK", DATA);
+    startApp();
   })
   .catch(err => {
-    console.error(err);
-    alert("Error cargando data.json");
+    console.error("JSON ERROR:", err);
   });
 
----
-
-function init() {
+function startApp() {
   if (!DATA) return;
 
-  // 🎧 CARGA AUDIO
-  [...DATA.sources.music, ...DATA.sources.sounds].forEach(s => {
-    const audio = new Audio(s.src);
-    audio.volume = s.volume ?? 1;
-    audioMap[s.id] = { audio, meta: s };
-  });
-
-  // 🎮 STAGES
-  const sel = document.getElementById('stageSelect');
-  const grid = document.getElementById('sfxGrid');
+  const sel = document.getElementById("stageSelect");
+  const grid = document.getElementById("sfxGrid");
 
   if (!sel || !grid) {
-    console.error("Faltan elementos HTML (stageSelect o sfxGrid)");
+    console.error("Falta HTML base (stageSelect o sfxGrid)");
     return;
   }
 
+  // AUDIO
+  const all = [...DATA.sources.music, ...DATA.sources.sounds];
+
+  all.forEach(s => {
+    const a = new Audio(s.src);
+    a.volume = s.volume ?? 1;
+    audioMap[s.id] = a;
+  });
+
+  // STAGES
   DATA.stages.forEach(st => {
-    const opt = document.createElement('option');
+    const opt = document.createElement("option");
     opt.value = st.id;
     opt.textContent = st.label;
     sel.appendChild(opt);
   });
 
   sel.onchange = () => {
-    const st = DATA.stages.find(s => s.id === sel.value);
+    const st = DATA.stages.find(x => x.id === sel.value);
     if (st) playMusic(st.music);
   };
 
-  // 🔊 SFX BUTTONS
+  // SFX
   DATA.sfx.forEach(s => {
-    const btn = document.createElement('button');
-    btn.className =
-      "border border-green-500 p-2 hover:bg-green-500 hover:text-black";
-
+    const btn = document.createElement("button");
     btn.textContent = s.label;
-    btn.onclick = () => playSequence(s.play);
-
+    btn.onclick = () => playSeq(s.play);
     grid.appendChild(btn);
   });
 
-  // 🚨 OVERRIDE BUTTONS + ALERT
-  buildOverrideButtons();
+  buildOverrides();
 }
 
 ---
 
-# 🎵 MUSICA
-
 function playMusic(id) {
-  stopMusic();
-
-  const obj = audioMap[id];
-  if (!obj) return;
-
-  currentMusic = obj.audio;
-  obj.audio.currentTime = 0;
-  obj.audio.play();
-
-  const now = document.getElementById('nowPlaying');
-  if (now) now.textContent = id;
-}
-
-function stopMusic() {
   if (currentMusic) {
     currentMusic.pause();
     currentMusic.currentTime = 0;
   }
+
+  const a = audioMap[id];
+  if (!a) return;
+
+  currentMusic = a;
+  a.currentTime = 0;
+  a.play();
 }
 
 ---
 
-# 🔊 SFX (SUPERPOSICIÓN REAL)
-
-function playSequence(seq) {
-  seq.forEach(step => {
+function playSeq(seq) {
+  seq.forEach(x => {
     setTimeout(() => {
-      const obj = audioMap[step.id];
-      if (!obj) return;
+      const a = audioMap[x.id];
+      if (!a) return;
 
-      const a = obj.audio.cloneNode();
-      a.volume = obj.meta.volume ?? 1;
-      a.play();
-    }, (step.delay ?? 0) * 1000);
+      const clone = a.cloneNode();
+      clone.play();
+    }, (x.delay || 0) * 1000);
   });
 }
 
 ---
-
-# 🚨 OVERRIDES (ARREGLADO SIN '-' ERROR)
 
 function runOverride(id) {
   const list = DATA["stage-overrides"] || [];
   const ov = list.find(o => o.id === id);
   if (!ov) return;
 
-  ov.play.forEach(step => {
+  ov.play.forEach(x => {
     setTimeout(() => {
-      const obj = audioMap[step.id];
-      if (!obj) return;
+      const a = audioMap[x.id];
+      if (!a) return;
 
-      const a = obj.audio.cloneNode();
-      a.volume = obj.meta.volume ?? 1;
-      a.play();
-    }, (step.delay ?? 0) * 1000);
+      const c = a.cloneNode();
+      c.play();
+    }, (x.delay || 0) * 1000);
   });
 }
 
 ---
 
-# 🧩 BOTONES OVERRIDE + ALERT
-
-function buildOverrideButtons() {
+function buildOverrides() {
   const list = DATA["stage-overrides"] || [];
-  if (!list.length) return;
+  const container = document.createElement("div");
 
-  const container = document.createElement('div');
-  container.style.margin = "10px";
   container.style.display = "flex";
-  container.style.gap = "8px";
+  container.style.gap = "10px";
+  container.style.margin = "10px";
 
   list.forEach(o => {
-    const btn = document.createElement('button');
-
-    btn.textContent = o.label;
-    btn.style.border = "1px solid red";
-    btn.style.color = "red";
-    btn.style.padding = "5px";
-
-    btn.onclick = () => runOverride(o.id);
-
-    container.appendChild(btn);
+    const b = document.createElement("button");
+    b.textContent = o.label;
+    b.onclick = () => runOverride(o.id);
+    container.appendChild(b);
   });
 
-  // 🚨 BOTÓN ALERT GLOBAL EXTRA
-  const alertBtn = document.createElement('button');
-  alertBtn.textContent = "🚨 ALERT";
+  const alert = document.createElement("button");
+  alert.textContent = "ALERT";
+  alert.onclick = () => runOverride("override-alert");
 
-  alertBtn.style.border = "1px solid red";
-  alertBtn.style.color = "red";
-  alertBtn.style.padding = "5px";
-
-  alertBtn.onclick = () => runOverride("override-alert");
-
-  container.prepend(alertBtn);
+  container.prepend(alert);
 
   document.body.prepend(container);
 }
