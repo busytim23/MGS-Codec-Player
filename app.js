@@ -3,14 +3,26 @@ const audioMap = {};
 let currentMusic = null;
 
 fetch('data.json')
-  .then(res => res.json())
+  .then(res => {
+    if (!res.ok) throw new Error("No se pudo cargar data.json");
+    return res.json();
+  })
   .then(data => {
     DATA = data;
+    console.log("DATA cargada OK");
     init();
+  })
+  .catch(err => {
+    console.error(err);
+    alert("Error cargando data.json");
   });
 
+---
+
 function init() {
-  // 🎧 AUDIO
+  if (!DATA) return;
+
+  // 🎧 CARGA AUDIO
   [...DATA.sources.music, ...DATA.sources.sounds].forEach(s => {
     const audio = new Audio(s.src);
     audio.volume = s.volume ?? 1;
@@ -19,6 +31,12 @@ function init() {
 
   // 🎮 STAGES
   const sel = document.getElementById('stageSelect');
+  const grid = document.getElementById('sfxGrid');
+
+  if (!sel || !grid) {
+    console.error("Faltan elementos HTML (stageSelect o sfxGrid)");
+    return;
+  }
 
   DATA.stages.forEach(st => {
     const opt = document.createElement('option');
@@ -32,64 +50,20 @@ function init() {
     if (st) playMusic(st.music);
   };
 
-  // 🔊 SFX
-  const grid = document.getElementById('sfxGrid');
-
+  // 🔊 SFX BUTTONS
   DATA.sfx.forEach(s => {
     const btn = document.createElement('button');
-    btn.className = "border border-green-500 p-2 hover:bg-green-500 hover:text-black";
+    btn.className =
+      "border border-green-500 p-2 hover:bg-green-500 hover:text-black";
+
     btn.textContent = s.label;
     btn.onclick = () => playSequence(s.play);
+
     grid.appendChild(btn);
   });
 
-  // 🚨 BOTONES OVERLAYS (AQUÍ ESTABA EL ERROR)
+  // 🚨 OVERRIDE BUTTONS + ALERT
   buildOverrideButtons();
-}
-
----
-
-# 🚨 OVERRIDE BUTTONS (ARREGLADO)
-
-function buildOverrideButtons() {
-  const container = document.createElement('div');
-  container.className = "mt-4 flex gap-2";
-
-  const overrides = DATA["stage-overrides"] || [];
-
-  overrides.forEach(o => {
-    const btn = document.createElement('button');
-
-    btn.textContent = o.label;
-    btn.className =
-      "border border-red-500 px-3 py-1 text-red-400 hover:bg-red-500 hover:text-black";
-
-    btn.onclick = () => runOverride(o.id);
-
-    container.appendChild(btn);
-  });
-
-  document.body.prepend(container);
-}
-
----
-
-# 🚨 EJECUCIÓN OVERLAY
-
-function runOverride(id) {
-  const ov = (DATA["stage-overrides"] || []).find(o => o.id === id);
-  if (!ov) return;
-
-  ov.play.forEach(step => {
-    setTimeout(() => {
-      const obj = audioMap[step.id];
-      if (!obj) return;
-
-      const a = obj.audio.cloneNode();
-      a.volume = obj.meta.volume ?? 1;
-      a.play();
-    }, (step.delay ?? 0) * 1000);
-  });
 }
 
 ---
@@ -106,7 +80,8 @@ function playMusic(id) {
   obj.audio.currentTime = 0;
   obj.audio.play();
 
-  document.getElementById('nowPlaying').textContent = id;
+  const now = document.getElementById('nowPlaying');
+  if (now) now.textContent = id;
 }
 
 function stopMusic() {
@@ -118,7 +93,7 @@ function stopMusic() {
 
 ---
 
-# 🔊 SFX
+# 🔊 SFX (SUPERPOSICIÓN REAL)
 
 function playSequence(seq) {
   seq.forEach(step => {
@@ -131,4 +106,66 @@ function playSequence(seq) {
       a.play();
     }, (step.delay ?? 0) * 1000);
   });
+}
+
+---
+
+# 🚨 OVERRIDES (ARREGLADO SIN '-' ERROR)
+
+function runOverride(id) {
+  const list = DATA["stage-overrides"] || [];
+  const ov = list.find(o => o.id === id);
+  if (!ov) return;
+
+  ov.play.forEach(step => {
+    setTimeout(() => {
+      const obj = audioMap[step.id];
+      if (!obj) return;
+
+      const a = obj.audio.cloneNode();
+      a.volume = obj.meta.volume ?? 1;
+      a.play();
+    }, (step.delay ?? 0) * 1000);
+  });
+}
+
+---
+
+# 🧩 BOTONES OVERRIDE + ALERT
+
+function buildOverrideButtons() {
+  const list = DATA["stage-overrides"] || [];
+  if (!list.length) return;
+
+  const container = document.createElement('div');
+  container.style.margin = "10px";
+  container.style.display = "flex";
+  container.style.gap = "8px";
+
+  list.forEach(o => {
+    const btn = document.createElement('button');
+
+    btn.textContent = o.label;
+    btn.style.border = "1px solid red";
+    btn.style.color = "red";
+    btn.style.padding = "5px";
+
+    btn.onclick = () => runOverride(o.id);
+
+    container.appendChild(btn);
+  });
+
+  // 🚨 BOTÓN ALERT GLOBAL EXTRA
+  const alertBtn = document.createElement('button');
+  alertBtn.textContent = "🚨 ALERT";
+
+  alertBtn.style.border = "1px solid red";
+  alertBtn.style.color = "red";
+  alertBtn.style.padding = "5px";
+
+  alertBtn.onclick = () => runOverride("override-alert");
+
+  container.prepend(alertBtn);
+
+  document.body.prepend(container);
 }
