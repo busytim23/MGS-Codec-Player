@@ -2,29 +2,27 @@ let DATA = null;
 const audioMap = {};
 let currentMusic = null;
 
-fetch('data.json')
-  .then(r => r.json())
-  .then(d => {
-    DATA = d;
-    console.log("JSON OK", DATA);
-    startApp();
-  })
-  .catch(err => {
-    console.error("JSON ERROR:", err);
-  });
+document.addEventListener("DOMContentLoaded", () => {
+  fetch("data.json")
+    .then(r => r.json())
+    .then(d => {
+      DATA = d;
+      console.log("DATA OK");
+      startApp();
+    })
+    .catch(e => console.error("JSON ERROR", e));
+});
 
 function startApp() {
-  if (!DATA) return;
-
   const sel = document.getElementById("stageSelect");
   const grid = document.getElementById("sfxGrid");
 
   if (!sel || !grid) {
-    console.error("Falta HTML base (stageSelect o sfxGrid)");
+    console.error("Faltan elementos HTML");
     return;
   }
 
-  // AUDIO
+  // AUDIO MAP
   const all = [...DATA.sources.music, ...DATA.sources.sounds];
 
   all.forEach(s => {
@@ -50,7 +48,7 @@ function startApp() {
   DATA.sfx.forEach(s => {
     const btn = document.createElement("button");
     btn.textContent = s.label;
-    btn.onclick = () => playSeq(s.play);
+    btn.onclick = () => playSequence(s.play);
     grid.appendChild(btn);
   });
 
@@ -69,20 +67,19 @@ function playMusic(id) {
   if (!a) return;
 
   currentMusic = a;
-  a.currentTime = 0;
   a.play();
 }
 
 ---
 
-function playSeq(seq) {
+function playSequence(seq) {
   seq.forEach(x => {
     setTimeout(() => {
       const a = audioMap[x.id];
       if (!a) return;
 
-      const clone = a.cloneNode();
-      clone.play();
+      const c = a.cloneNode();
+      c.play();
     }, (x.delay || 0) * 1000);
   });
 }
@@ -109,11 +106,16 @@ function runOverride(id) {
 
 function buildOverrides() {
   const list = DATA["stage-overrides"] || [];
-  const container = document.createElement("div");
 
+  const container = document.createElement("div");
   container.style.display = "flex";
   container.style.gap = "10px";
   container.style.margin = "10px";
+
+  const alert = document.createElement("button");
+  alert.textContent = "🚨 ALERT";
+  alert.onclick = () => runOverride("override-alert");
+  container.appendChild(alert);
 
   list.forEach(o => {
     const b = document.createElement("button");
@@ -121,12 +123,6 @@ function buildOverrides() {
     b.onclick = () => runOverride(o.id);
     container.appendChild(b);
   });
-
-  const alert = document.createElement("button");
-  alert.textContent = "ALERT";
-  alert.onclick = () => runOverride("override-alert");
-
-  container.prepend(alert);
 
   document.body.prepend(container);
 }
