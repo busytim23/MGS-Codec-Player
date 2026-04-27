@@ -16,8 +16,9 @@ document.addEventListener("DOMContentLoaded", () => {
 function startApp() {
   const sel = document.getElementById("stageSelect");
   const grid = document.getElementById("sfxGrid");
+  const overrideUI = document.getElementById("overrideContainer");
 
-  if (!sel || !grid) {
+  if (!sel || !grid || !overrideUI) {
     console.error("Faltan elementos HTML");
     return;
   }
@@ -28,6 +29,7 @@ function startApp() {
   all.forEach(s => {
     const a = new Audio(s.src);
     a.volume = s.volume ?? 1;
+    a.preload = "auto";
     audioMap[s.id] = a;
   });
 
@@ -47,12 +49,13 @@ function startApp() {
   // SFX
   DATA.sfx.forEach(s => {
     const btn = document.createElement("button");
+    btn.className = "border border-green-500 px-2 py-1";
     btn.textContent = s.label;
     btn.onclick = () => playSequence(s.play);
     grid.appendChild(btn);
   });
 
-  buildOverrides();
+  buildOverrides(overrideUI);
 }
 
 ---
@@ -67,6 +70,7 @@ function playMusic(id) {
   if (!a) return;
 
   currentMusic = a;
+  a.currentTime = 0;
   a.play();
 }
 
@@ -104,25 +108,22 @@ function runOverride(id) {
 
 ---
 
-function buildOverrides() {
+function buildOverrides(container) {
   const list = DATA["stage-overrides"] || [];
 
-  const container = document.createElement("div");
-  container.style.display = "flex";
-  container.style.gap = "10px";
-  container.style.margin = "10px";
+  container.innerHTML = "";
 
   const alert = document.createElement("button");
+  alert.className = "border border-red-500 px-3 py-1";
   alert.textContent = "🚨 ALERT";
   alert.onclick = () => runOverride("override-alert");
   container.appendChild(alert);
 
   list.forEach(o => {
     const b = document.createElement("button");
+    b.className = "border border-green-500 px-2 py-1";
     b.textContent = o.label;
     b.onclick = () => runOverride(o.id);
     container.appendChild(b);
   });
-
-  document.body.prepend(container);
 }
