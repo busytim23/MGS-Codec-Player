@@ -504,7 +504,7 @@
       "music": "music-the-best-is-yet-to-come"
     }
   ],
-  DATA["stage-overrides"]: [
+  "stage-overrides": [
     {
       "id": "override-alert",
       "label": "❗ Trigger alert",
