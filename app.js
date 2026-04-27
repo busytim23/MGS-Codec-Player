@@ -2,7 +2,6 @@ let DATA;
 const audioMap = {};
 let currentMusic = null;
 
-// 🔥 cargar JSON externo
 fetch('data.json')
   .then(res => res.json())
   .then(data => {
@@ -11,11 +10,10 @@ fetch('data.json')
   });
 
 function init() {
-  // 🎧 cargar audios
+  // 🎧 AUDIO
   [...DATA.sources.music, ...DATA.sources.sounds].forEach(s => {
     const audio = new Audio(s.src);
     audio.volume = s.volume ?? 1;
-    audio.preload = s.preload ? "auto" : "metadata";
     audioMap[s.id] = { audio, meta: s };
   });
 
@@ -34,69 +32,55 @@ function init() {
     if (st) playMusic(st.music);
   };
 
-  // 🔊 SFX BUTTONS
+  // 🔊 SFX
   const grid = document.getElementById('sfxGrid');
 
   DATA.sfx.forEach(s => {
     const btn = document.createElement('button');
-    btn.className =
-      "border border-green-500 p-2 hover:bg-green-500 hover:text-black transition";
+    btn.className = "border border-green-500 p-2 hover:bg-green-500 hover:text-black";
     btn.textContent = s.label;
     btn.onclick = () => playSequence(s.play);
     grid.appendChild(btn);
   });
 
-  // 🚨 BOTÓN ALERTA GLOBAL (override)
-  const alertBtn = document.createElement('button');
-  alertBtn.textContent = "🚨 ALERT";
-  alertBtn.className =
-    "border border-red-500 px-3 py-1 text-red-400 hover:bg-red-500 hover:text-black ml-2";
-
-  alertBtn.onclick = () => runOverride("override-alert");
-
-  document.querySelector("body").prepend(alertBtn);
+  // 🚨 BOTONES OVERLAYS (AQUÍ ESTABA EL ERROR)
+  buildOverrideButtons();
 }
 
 ---
 
-# 🎵 MUSICA (NO SE CORTA CON SFX)
+# 🚨 OVERRIDE BUTTONS (ARREGLADO)
 
-function playMusic(id) {
-  stopMusic();
+function buildOverrideButtons() {
+  const container = document.createElement('div');
+  container.className = "mt-4 flex gap-2";
 
-  const obj = audioMap[id];
-  if (!obj) return;
+  const overrides = DATA["stage-overrides"] || [];
 
-  currentMusic = obj.audio;
-  obj.audio.currentTime = 0;
-  obj.audio.loop = false;
-  obj.audio.play();
+  overrides.forEach(o => {
+    const btn = document.createElement('button');
 
-  document.getElementById('nowPlaying').textContent = id;
+    btn.textContent = o.label;
+    btn.className =
+      "border border-red-500 px-3 py-1 text-red-400 hover:bg-red-500 hover:text-black";
 
-  // 🔁 loop avanzado tipo MGS
-  if (obj.meta.loop_start !== undefined) {
-    obj.audio.ontimeupdate = () => {
-      if (obj.audio.currentTime >= obj.meta.loop_end) {
-        obj.audio.currentTime = obj.meta.loop_start;
-      }
-    };
-  }
-}
+    btn.onclick = () => runOverride(o.id);
 
-function stopMusic() {
-  if (currentMusic) {
-    currentMusic.pause();
-    currentMusic.currentTime = 0;
-  }
+    container.appendChild(btn);
+  });
+
+  document.body.prepend(container);
 }
 
 ---
 
-# 🔊 SFX (SUPERPOSICIÓN REAL)
+# 🚨 EJECUCIÓN OVERLAY
 
-function playSequence(seq) {
-  seq.forEach(step => {
+function runOverride(id) {
+  const ov = (DATA["stage-overrides"] || []).find(o => o.id === id);
+  if (!ov) return;
+
+  ov.play.forEach(step => {
     setTimeout(() => {
       const obj = audioMap[step.id];
       if (!obj) return;
@@ -110,16 +94,34 @@ function playSequence(seq) {
 
 ---
 
-# 🚨 OVERRIDES (SISTEMA TIPO JUEGO)
+# 🎵 MUSICA
 
-👉 esto es lo que te da el “modo Metal Gear”
+function playMusic(id) {
+  stopMusic();
 
-```javascript
-function runOverride(id) {
-  const ov = DATA["stage-overrides"]?.find(o => o.id === id);
-  if (!ov) return;
+  const obj = audioMap[id];
+  if (!obj) return;
 
-  ov.play.forEach(step => {
+  currentMusic = obj.audio;
+  obj.audio.currentTime = 0;
+  obj.audio.play();
+
+  document.getElementById('nowPlaying').textContent = id;
+}
+
+function stopMusic() {
+  if (currentMusic) {
+    currentMusic.pause();
+    currentMusic.currentTime = 0;
+  }
+}
+
+---
+
+# 🔊 SFX
+
+function playSequence(seq) {
+  seq.forEach(step => {
     setTimeout(() => {
       const obj = audioMap[step.id];
       if (!obj) return;
